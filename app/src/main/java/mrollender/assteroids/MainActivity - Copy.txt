@@ -1,0 +1,75 @@
+package mrollender.assteroids;
+
+import android.app.Activity;
+import android.app.ActivityManager;
+import android.content.Context;
+import android.content.pm.ConfigurationInfo;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
+import android.support.v7.app.ActionBarActivity;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.Window;
+import android.view.WindowManager;
+
+
+public class MainActivity extends Activity implements SensorEventListener {
+    private SensorManager sensorManager;
+    public static float ySensor;
+    public static float xSensor;
+    private float[] gravityValues = new float[3];
+    private float[] magneticValues = new float[3];
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+
+
+        ActivityManager am = (ActivityManager)getSystemService(Context.ACTIVITY_SERVICE);
+        ConfigurationInfo info = am.getDeviceConfigurationInfo();
+        boolean supportES2 = (info.reqGlEsVersion >= 0x20000);
+        if(supportES2) {
+            MainRenderer mainRenderer = new MainRenderer();
+            GameSurfaceView gameSurfaceView = new GameSurfaceView(this);
+            gameSurfaceView.setEGLContextClientVersion(2);
+            gameSurfaceView.setRenderer(mainRenderer
+            this.setContentView(gameSurfaceView));
+        } else {
+            Log.e("OpenGLES 2", "Your device does not support ES2 (" + info.reqGlEsVersion + ")");
+        }
+
+
+        //put this after removing stuff
+        setContentView(new GameView(this));
+        sensorManager=(SensorManager)getSystemService(SENSOR_SERVICE);
+        sensorManager.registerListener(this, sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER), SensorManager.SENSOR_DELAY_GAME);
+        sensorManager.registerListener(this, sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD), SensorManager.SENSOR_DELAY_GAME);
+
+    }
+    //TODO unregister listeners when they aren't needed
+    public void onSensorChanged(SensorEvent event) {
+        float[] rotationMatrix = new float[9];
+        float[] I = new float[9];
+        if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+            gravityValues = event.values;
+        }
+
+        if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD) {
+            magneticValues = event.values;
+        }
+        float[] orientation = new float[3];
+        if(SensorManager.getRotationMatrix(rotationMatrix, I, gravityValues, magneticValues)) {
+            SensorManager.getOrientation(rotationMatrix,orientation);
+        } else {
+            //TODO add failure message ('is your device in freefall?')
+        }
+        xSensor = orientation[1];
+        ySensor = orientation[2];
+    }
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+    }
+}
